@@ -75,6 +75,7 @@ func (h *createWantsHandler) HandleConnect(ctx context.Context, edp muxrpc.Endpo
 }
 
 func (h *createWantsHandler) HandleCall(ctx context.Context, req *muxrpc.Request, edp muxrpc.Endpoint) {
+	defer req.Stream.Close()
 	src, err := h.getSource(ctx, edp)
 	if err != nil {
 		level.Debug(h.log).Log("event", "onCall", "handler", "createWants", "getSourceErr", err)
@@ -87,14 +88,13 @@ func (h *createWantsHandler) HandleCall(ctx context.Context, req *muxrpc.Request
 	}
 
 	err = luigi.Pump(ctx, snk, src)
-	if err != nil && !muxrpc.IsSinkClosed(err) && errors.Cause(err) != context.Canceled {
+	if err != nil && !muxrpc.IsSinkClosed(err) && errors.Cause(err) != context.Canceled && errors.Cause(err) != ssb.ErrShuttingDown {
 		level.Debug(h.log).Log("event", "onCall", "handler", "createWants", "err", err)
 	}
 
 	h.l.Lock()
-	defer h.l.Unlock()
 	delete(h.sources, edp.Remote().String())
+	h.l.Unlock()
 
 	snk.Close()
-	req.Stream.Close()
 }

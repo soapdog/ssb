@@ -162,7 +162,6 @@ github.com/prometheus/procfs v0.0.3 h1:CTwfnzjQ+8dS6MhHHu4YswVAD99sL2wjPqP+VkURm
 github.com/prometheus/procfs v0.0.3/go.mod h1:4A/X28fw3Fc593LaREMrKMqOKvUAntwMDaekg4FpcdQ=
 github.com/remyoudompheng/bigfft v0.0.0-20190728182440-6a916e37a237 h1:HQagqIiBmr8YXawX/le3+O26N+vPPC1PtjaF3mwnook=
 github.com/remyoudompheng/bigfft v0.0.0-20190728182440-6a916e37a237/go.mod h1:qqbHyh8v60DhA7CoWK5oRCqLrMHRGoxYCSS9EjAz6Eo=
-github.com/rotisserie/eris v0.1.1 h1:C0wEdnJ6+3jYx2r8RS4xBM+ZW+mVrXGocIaFbTdRYCA=
 github.com/rotisserie/eris v0.1.1/go.mod h1:2ik3CyJrzlOjGyDGrKfqZivSfmkhCS3ktE+T1mNzzLk=
 github.com/sclevine/spec v1.2.0 h1:1Jwdf9jSfDl9NVmt8ndHqbTZ7XCCPbh1jI3hkDBHVYA=
 github.com/sclevine/spec v1.2.0/go.mod h1:W4J29eT/Kzv7/b9IWLB055Z+qvVC9vt0Arko24q7p+U=
@@ -219,15 +218,17 @@ go.cryptoscope.co/margaret v0.1.4/go.mod h1:9anofnVTwgMMNY1zENRRZHSpjiEDEBZg40CI
 go.cryptoscope.co/margaret v0.1.6 h1:jxg0luTLMescgKjm2xWQclTJ57e5u9DzsF/hRQ6N7kA=
 go.cryptoscope.co/margaret v0.1.6/go.mod h1:9anofnVTwgMMNY1zENRRZHSpjiEDEBZg40CIaX4raPY=
 go.cryptoscope.co/muxrpc v1.4.1-0.20190910185819-a3119150878e/go.mod h1:dV/i300s3OxZKI0YPlY/hG7w2y9TFgu3oQkNDXBoMQY=
+go.cryptoscope.co/muxrpc v1.4.1-0.20190910185819-a3119150878e/go.mod h1:dV/i300s3OxZKI0YPlY/hG7w2y9TFgu3oQkNDXBoMQY=
 go.cryptoscope.co/muxrpc v1.5.4-0.20191205134222-b1563255bffa h1:wwBK13xg2akKHUP3oBa4COx1NMCxUPZpqlCz4EPx29A=
 go.cryptoscope.co/muxrpc v1.5.4-0.20191205134222-b1563255bffa/go.mod h1:kB8EGlRBgr5M8E80CKaTxC2Ga8OCMLUVnw8YNiFSVrw=
+go.cryptoscope.co/muxrpc v1.5.4-0.20200415120423-6cd43427788b h1:jlBu9Chy13lmyW6HMVIDB5q8kcT2ks/2u59zvbdwJCI=
+go.cryptoscope.co/muxrpc v1.5.4-0.20200415120423-6cd43427788b/go.mod h1:kZr4e+CV8nH+OmEp+UAGWG+Sna6WB85nzziMtop3pn8=
 go.cryptoscope.co/netwrap v0.0.0-20180427130219-dae5b5bc35c3/go.mod h1:arPOz1SB/sunS41F1iBgMgkx4fRhKkG221uUMjzkAqc=
 go.cryptoscope.co/netwrap v0.0.3/go.mod h1:arPOz1SB/sunS41F1iBgMgkx4fRhKkG221uUMjzkAqc=
 go.cryptoscope.co/netwrap v0.1.0/go.mod h1:7zcYswCa4CT+ct54e9uH9+IIbYYETEMHKDNpzl8Ukew=
 go.cryptoscope.co/netwrap v0.1.1 h1:JLzzGKEvrUrkKzu3iM0DhpHmt+L/gYqmpcf1lJMUyFs=
 go.cryptoscope.co/netwrap v0.1.1/go.mod h1:7zcYswCa4CT+ct54e9uH9+IIbYYETEMHKDNpzl8Ukew=
 go.cryptoscope.co/secretstream v1.1.4-0.20190911135450-b2c157275a98/go.mod h1:MldHqeBpxV83+geayFgHgsHc1/oF7yIIkpMJqo3M1rQ=
-go.cryptoscope.co/secretstream v1.2.2-0.20200113122031-363c9610d8de h1:lkefo34tJOzQzIbiTDrOBWBuA5F4SojdKE3LchdSRN4=
 go.cryptoscope.co/secretstream v1.2.2-0.20200113122031-363c9610d8de/go.mod h1:DSDzjJtgZUjkCFJRYSlFC/I0xxn/phzGi0WMpIz6az4=
 go.cryptoscope.co/secretstream v1.2.2-0.20200303151838-85cf020cfee6 h1:z02UYPKp2YpunYMD29wSdMLoAgY863sf2ssRIZ3PJG4=
 go.cryptoscope.co/secretstream v1.2.2-0.20200303151838-85cf020cfee6/go.mod h1:BFKqF3sseh9dR2MTWICW7YkWxZb3OVwmxkty+GKBF64=

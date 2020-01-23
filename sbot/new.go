@@ -3,6 +3,7 @@
 package sbot
 
 import (
+	"context"
 	"io"
 	"net"
 	"time"
@@ -36,6 +37,12 @@ import (
 	"go.cryptoscope.co/ssb/private"
 	"go.cryptoscope.co/ssb/repo"
 )
+
+// ShutdownContext returns a context that returns ssb.ErrShuttingDown when canceld.
+// The server internals use this error to cleanly shut down index processing.
+func ShutdownContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	return ctxutils.WithError(ctx, ssb.ErrShuttingDown)
+}
 
 func (s *Sbot) Close() error {
 	s.closedMu.Lock()
@@ -77,9 +84,8 @@ func (s *Sbot) Close() error {
 
 func initSbot(s *Sbot) (*Sbot, error) {
 	log := s.info
-	var err error
-	s.rootCtx, s.Shutdown = ctxutils.WithError(s.rootCtx, ssb.ErrShuttingDown)
 	ctx := s.rootCtx
+	var err error
 
 	r := repo.New(s.repoPath)
 
@@ -305,13 +311,13 @@ func initSbot(s *Sbot) (*Sbot, error) {
 		kitlog.With(log, "plugin", "gossip/hist"),
 		s.KeyPair.Id, s.RootLog, uf, s.replicator.makeLister(),
 		histOpts...)
-	s.public.Register(hist)
+	s.public.Register(&hist)
 
 	s.master.Register(get.New(s))
 
 	// raw log plugins
 	s.master.Register(rawread.NewRXLog(s.RootLog)) // createLogStream
-	s.master.Register(hist)                        // createHistoryStream
+	s.master.Register(&hist)                       // createHistoryStream
 
 	s.master.Register(replicate.NewPlug(uf))
 

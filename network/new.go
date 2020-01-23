@@ -91,7 +91,7 @@ func New(opts Options) (ssb.Network, error) {
 	}
 
 	if opts.ConnTracker == nil {
-		opts.ConnTracker = NewAcceptAllTracker()
+		opts.ConnTracker = NewLastWinsTracker()
 	}
 	n.connTracker = opts.ConnTracker
 
@@ -278,7 +278,7 @@ func (n *node) handleConnection(ctx context.Context, origConn net.Conn, hws ...m
 	err = srv.Serve(ctx)
 	if err != nil {
 		causeErr := errors.Cause(err)
-		if !neterr.IsConnBrokenErr(causeErr) && causeErr != context.Canceled {
+		if !neterr.IsConnBrokenErr(causeErr) && causeErr != context.Canceled && causeErr != ssb.ErrShuttingDown {
 			level.Debug(n.log).Log("conn", "serve", "err", err)
 		}
 	}
