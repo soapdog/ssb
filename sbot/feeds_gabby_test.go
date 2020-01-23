@@ -10,24 +10,24 @@ import (
 	"testing"
 	"time"
 
-	"go.cryptoscope.co/ssb/internal/testutils"
-	"golang.org/x/sync/errgroup"
-
 	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/require"
 	"go.cryptoscope.co/luigi"
 	"go.cryptoscope.co/margaret"
+	"golang.org/x/sync/errgroup"
+
 	"go.cryptoscope.co/ssb"
+	"go.cryptoscope.co/ssb/internal/leakcheck"
 	"go.cryptoscope.co/ssb/internal/mutil"
+	"go.cryptoscope.co/ssb/internal/testutils"
 	"go.cryptoscope.co/ssb/message/multimsg"
 )
 
 func TestFeedsGabbySync(t *testing.T) {
-	// defer leakcheck.Check(t)
+	defer leakcheck.Check(t)
 	r := require.New(t)
-	// a := assert.New(t)
-	ctx, cancel := context.WithCancel(context.TODO())
 
+	ctx, cancel := ShutdownContext(context.Background())
 	botgroup, ctx := errgroup.WithContext(ctx)
 
 	info := testutils.NewRelativeTimeLogger(nil)

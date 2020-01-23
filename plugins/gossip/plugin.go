@@ -5,9 +5,11 @@ package gossip
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/cryptix/go/logging"
 	"github.com/go-kit/kit/metrics"
+	"go.cryptoscope.co/luigi"
 	"go.cryptoscope.co/margaret"
 	"go.cryptoscope.co/margaret/multilog"
 	"go.cryptoscope.co/muxrpc"
@@ -31,11 +33,11 @@ func New(
 	opts ...interface{},
 ) *plugin {
 	h := &handler{
-		Id:           id,
-		RootLog:      rootLog,
-		UserFeeds:    userFeeds,
-		GraphBuilder: graphBuilder,
-		Info:         log,
+		self:         id,
+		receiveLog:   rootLog,
+		feedIndex:    userFeeds,
+		graphBuilder: graphBuilder,
+		logger:       log,
 		rootCtx:      ctx,
 	}
 
@@ -59,14 +61,34 @@ func New(
 		h.hopCount = 1
 	}
 
-	h.feedManager = NewFeedManager(
+	h.pushManager = NewFeedPushManager(
 		h.rootCtx,
-		h.RootLog,
-		h.UserFeeds,
-		h.Info,
+		h.receiveLog,
+		h.feedIndex,
+		h.logger,
 		h.sysGauge,
 		h.sysCtr,
 	)
+
+	h.pull = &pullManager{
+		self:      *id,
+		gb:        graphBuilder,
+		feedIndex: userFeeds,
+
+		receiveLog: rootLog,
+		append: &rxSink{
+			logger: log,
+			append: rootLog,
+		},
+
+		verifyMu:    &sync.Mutex{},
+		verifySinks: make(map[string]luigi.Sink),
+
+		hops:    h.hopCount,
+		hmacKey: h.hmacSec,
+
+		logger: log,
+	}
 
 	return &plugin{h}
 }
@@ -81,11 +103,11 @@ func NewHist(
 	opts ...interface{},
 ) histPlugin {
 	h := &handler{
-		Id:           id,
-		RootLog:      rootLog,
-		UserFeeds:    userFeeds,
-		GraphBuilder: graphBuilder,
-		Info:         log,
+		self:         id,
+		receiveLog:   rootLog,
+		feedIndex:    userFeeds,
+		graphBuilder: graphBuilder,
+		logger:       log,
 		rootCtx:      ctx,
 	}
 
@@ -110,11 +132,11 @@ func NewHist(
 		h.hopCount = 1
 	}
 
-	h.feedManager = NewFeedManager(
+	h.pushManager = NewFeedPushManager(
 		h.rootCtx,
-		h.RootLog,
-		h.UserFeeds,
-		h.Info,
+		h.receiveLog,
+		h.feedIndex,
+		h.logger,
 		h.sysGauge,
 		h.sysCtr,
 	)
@@ -122,34 +144,20 @@ func NewHist(
 	return histPlugin{h}
 }
 
-type plugin struct {
-	h *handler
+type plugin struct{ h *handler }
+
+func (plugin) Name() string              { return "gossip" }
+func (plugin) Method() muxrpc.Method     { return muxrpc.Method{"gossip"} }
+func (p plugin) Handler() muxrpc.Handler { return p.h }
+
+type histPlugin struct{ h *handler }
+
+func (hp histPlugin) Name() string       { return "createHistoryStream" }
+func (histPlugin) Method() muxrpc.Method { return muxrpc.Method{"createHistoryStream"} }
+
+func (*histPlugin) HandleConnect(ctx context.Context, edp muxrpc.Endpoint) {}
+func (h *histPlugin) HandleCall(ctx context.Context, req *muxrpc.Request, edp muxrpc.Endpoint) {
+	h.h.HandleCall(ctx, req, edp)
 }
 
-func (plugin) Name() string { return "gossip" }
-
-func (plugin) Method() muxrpc.Method {
-	return muxrpc.Method{"gossip"}
-}
-
-func (p plugin) Handler() muxrpc.Handler {
-	return p.h
-}
-
-type histPlugin struct {
-	h *handler
-}
-
-func (hp histPlugin) Name() string { return "createHistoryStream" }
-
-func (histPlugin) Method() muxrpc.Method {
-	return muxrpc.Method{"createHistoryStream"}
-}
-
-type IgnoreConnectHandler struct{ muxrpc.Handler }
-
-func (IgnoreConnectHandler) HandleConnect(ctx context.Context, edp muxrpc.Endpoint) {}
-
-func (hp histPlugin) Handler() muxrpc.Handler {
-	return IgnoreConnectHandler{hp.h}
-}
+func (hp *histPlugin) Handler() muxrpc.Handler { return hp }

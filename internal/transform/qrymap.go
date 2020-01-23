@@ -13,9 +13,10 @@ import (
 	"go.cryptoscope.co/margaret"
 
 	"go.cryptoscope.co/ssb"
+	"go.cryptoscope.co/ssb/message/multimsg"
 )
 
-func NewKeyValueWrapper(snk luigi.Sink, wrap bool) luigi.Sink {
+func NewKeyValueWrapper(output luigi.Sink, wrap bool) luigi.Sink {
 
 	noNulled := mfr.FilterFunc(func(ctx context.Context, v interface{}) (bool, error) {
 		if err, ok := v.(error); ok {
@@ -26,22 +27,38 @@ func NewKeyValueWrapper(snk luigi.Sink, wrap bool) luigi.Sink {
 		}
 		return true, nil
 	})
-	toJSON := mfr.SinkMap(snk, func(ctx context.Context, v interface{}) (interface{}, error) {
-		abs, ok := v.(ssb.Message)
-		if !ok {
-			seqWrap, ok := v.(margaret.SeqWrapper)
-			if !ok {
-				return nil, errors.Errorf("kvwrap: also not a seqWrapper - got %T", v)
-			}
 
-			sv := seqWrap.Value()
+	toJSON := mfr.SinkMap(output, func(ctx context.Context, v interface{}) (interface{}, error) {
+		var abs ssb.Message
+		switch tv := v.(type) {
+		case ssb.Message:
+			abs = tv
+		case margaret.SeqWrapper:
+			sv := tv.Value()
+			var ok bool
 			abs, ok = sv.(ssb.Message)
 			if !ok {
 				return nil, errors.Errorf("kvwrap: wrong message type in seqWrapper - got %T", sv)
 			}
+		default:
+			return nil, errors.Errorf("kvwrap: unexpected message type got %T", v)
 		}
 
 		if !wrap {
+			// skip re-encoding in some cases
+			if mm, ok := abs.(*multimsg.MultiMessage); ok {
+				leg, ok := mm.AsLegacy()
+				if ok {
+					return json.RawMessage(leg.Raw_), nil
+				}
+			}
+			if mm, ok := abs.(multimsg.MultiMessage); ok {
+				leg, ok := mm.AsLegacy()
+				if ok {
+					return json.RawMessage(leg.Raw_), nil
+				}
+			}
+
 			return json.RawMessage(abs.ValueContentJSON()), nil
 		}
 

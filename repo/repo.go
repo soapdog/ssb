@@ -149,7 +149,7 @@ func OpenMultiLog(r Interface, name string, f multilog.Func) (multilog.MultiLog,
 		}
 
 		err = luigi.Pump(ctx, mlogSink, src)
-		if err == ssb.ErrShuttingDown {
+		if err == ssb.ErrShuttingDown || errors.Cause(err) == context.Canceled {
 			return nil
 		}
 
@@ -203,7 +203,7 @@ func OpenIndex(r Interface, name string, f func(librarian.SeqSetterIndex) librar
 			return db.Close()
 		}
 
-		return errors.Wrap(err, "contacts index pump failed")
+		return errors.Wrapf(err, "index %s pump failed", name)
 	}
 
 	return idx, serve, nil
@@ -262,7 +262,7 @@ func OpenBadgerIndex(r Interface, name string, f func(*badger.DB) librarian.Sink
 		}
 
 		err = luigi.Pump(ctx, sinkidx, src)
-		if err == ssb.ErrShuttingDown {
+		if err == ssb.ErrShuttingDown || errors.Cause(err) == context.Canceled {
 			return nil
 		}
 

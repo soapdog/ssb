@@ -296,7 +296,7 @@ func TestFeedFromGo(t *testing.T) {
 }
 
 // We need more complete tests that cover joining and leaving peers to make sure we don't leak querys, rpc streams or other goroutiens
-func XTestFeedFromGoLive(t *testing.T) {
+func TestFeedFromGoLive(t *testing.T) {
 	defer leakcheck.Check(t)
 	r := require.New(t)
 

@@ -108,7 +108,7 @@ func TestAskForSomethingWeird(t *testing.T) {
 			a.Nil(v, "did not expect value from source: %T", v)
 			a.Error(err)
 			ce := errors.Cause(err)
-			callErr, ok := ce.(*muxrpc.CallError)
+			callErr, ok := ce.(muxrpc.CallError)
 			r.True(ok, "not a call err: %T", ce)
 			t.Log(callErr)
 		}

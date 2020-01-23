@@ -266,7 +266,7 @@ func WithInfo(log kitlog.Logger) Option {
 
 func WithContext(ctx context.Context) Option {
 	return func(s *Sbot) error {
-		s.rootCtx = ctx
+		s.rootCtx, s.Shutdown = ShutdownContext(ctx)
 		return nil
 	}
 }
@@ -406,7 +406,7 @@ func New(fopts ...Option) (*Sbot, error) {
 	}
 
 	if s.rootCtx == nil {
-		s.rootCtx = context.TODO()
+		s.rootCtx, s.Shutdown = ShutdownContext(context.TODO())
 	}
 
 	r := repo.New(s.repoPath)

@@ -12,20 +12,22 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 
 	"go.cryptoscope.co/margaret"
 	"go.cryptoscope.co/ssb"
+	"go.cryptoscope.co/ssb/internal/leakcheck"
 	"go.cryptoscope.co/ssb/internal/testutils"
 )
 
 func TestFeedsOneByOne(t *testing.T) {
-	// defer leakcheck.Check(t)
+	defer leakcheck.Check(t)
 	r := require.New(t)
 	a := assert.New(t)
-	ctx, cancel := context.WithCancel(context.TODO())
+	ctx, cancel := ShutdownContext(context.Background())
 
 	os.RemoveAll("testrun")
 
@@ -57,7 +59,7 @@ func TestFeedsOneByOne(t *testing.T) {
 		if err != nil {
 			level.Warn(mainLog).Log("event", "ali serve exited", "err", err)
 		}
-		if err == context.Canceled {
+		if errors.Cause(err) == ssb.ErrShuttingDown {
 			return nil
 		}
 		return err
@@ -82,7 +84,7 @@ func TestFeedsOneByOne(t *testing.T) {
 		if err != nil {
 			level.Warn(mainLog).Log("event", "bob serve exited", "err", err)
 		}
-		if err == context.Canceled {
+		if errors.Cause(err) == ssb.ErrShuttingDown {
 			return nil
 		}
 		return err
@@ -130,8 +132,8 @@ func TestFeedsOneByOne(t *testing.T) {
 		a.Equal(margaret.BaseSeq(i), seqv, "check run %d", i)
 	}
 
-	r.NoError(ali.FSCK())
-	r.NoError(bob.FSCK())
+	r.NoError(ali.FSCK(), "fsck bot A failed")
+	r.NoError(bob.FSCK(), "fsck bot B failed")
 
 	cancel()
 	ali.Shutdown()
