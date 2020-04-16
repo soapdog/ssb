@@ -7,6 +7,7 @@ require (
 	github.com/cryptix/go v1.5.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dgraph-io/badger v2.0.0-rc2+incompatible
+	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
 	github.com/dustin/go-humanize v1.0.0
 	github.com/go-kit/kit v0.10.0
 	github.com/hashicorp/go-multierror v1.1.0
