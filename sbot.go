@@ -36,6 +36,20 @@ type Indexer interface {
 	GetIndexNamesMultiLog() []string
 }
 
+// Replicator is used to tell the bot which feeds to replicate and which ones to block
+type Replicator interface {
+	Replicate(*FeedRef)
+	Block(*FeedRef)
+}
+
+// ReplicationLister is used by the executing part to get the lists
+type ReplicationLister interface {
+	Authorizer
+	ReplicationList() *StrFeedSet
+	BlockList() *StrFeedSet
+}
+
+// Statuser returns status information about the bot, like how many open connections it has (see type Status for more)
 type Statuser interface {
 	Status() (Status, error)
 }
