@@ -44,7 +44,9 @@ func (s *Sbot) Close() error {
 	if s.closed {
 		return s.closeErr
 	}
-	s.replicator.updateTicker.Stop()
+	if s.replicator != nil {
+		s.replicator.updateTicker.Stop()
+	}
 
 	closeEvt := kitlog.With(s.info, "event", "sbot closing")
 	s.closed = true
