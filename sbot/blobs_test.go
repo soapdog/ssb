@@ -16,10 +16,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.cryptoscope.co/margaret"
 	"golang.org/x/sync/errgroup"
 
-	"go.cryptoscope.co/ssb"
 	"go.cryptoscope.co/ssb/blobstore"
 	"go.cryptoscope.co/ssb/internal/leakcheck"
 	"go.cryptoscope.co/ssb/internal/testutils"
@@ -30,6 +28,9 @@ const blobSize = 1024 * 512
 func TestBlobsPair(t *testing.T) {
 	defer leakcheck.Check(t)
 	r := require.New(t)
+	if testing.Short() {
+		return
+	}
 	ctx, cancel := context.WithCancel(context.TODO())
 	botgroup, ctx := errgroup.WithContext(ctx)
 
@@ -514,20 +515,8 @@ func TestBlobsTooBig(t *testing.T) {
 	r.NoError(err)
 	srvBot(bob, "bob")
 
-	seq, err := ali.PublishLog.Append(ssb.Contact{
-		Type:      "contact",
-		Following: true,
-		Contact:   bob.KeyPair.Id,
-	})
-	r.NoError(err)
-	r.Equal(margaret.BaseSeq(0), seq)
-
-	seq, err = bob.PublishLog.Append(ssb.Contact{
-		Type:      "contact",
-		Following: true,
-		Contact:   ali.KeyPair.Id,
-	})
-	r.NoError(err)
+	ali.Replicate(bob.KeyPair.Id)
+	bob.Replicate(ali.KeyPair.Id)
 
 	err = bob.Network.Connect(ctx, ali.Network.GetListenAddr())
 	r.NoError(err)

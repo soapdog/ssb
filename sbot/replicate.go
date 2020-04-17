@@ -39,11 +39,16 @@ func (s *Sbot) newGraphReplicator() (*replicator, error) {
 	// if ok {
 	// }
 
-	r.updateTicker = time.NewTicker(time.Minute * 1)
+	// TODO: make a smarter update mechanism
+	r.updateTicker = time.NewTicker(time.Minute * 10)
 	go func() {
-		// TODO: make a smarter update mechanism
 
-		for range r.updateTicker.C {
+		for {
+			select {
+			case <-r.updateTicker.C:
+			case <-s.rootCtx.Done():
+				return
+			}
 			newWants := r.builder.Hops(s.KeyPair.Id, 2)
 
 			refs, err := newWants.List()

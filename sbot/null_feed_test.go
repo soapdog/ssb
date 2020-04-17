@@ -138,6 +138,9 @@ func TestNullFeed(t *testing.T) {
 	_, err = bertBot.PublishLog.Publish(ssb.NewContactFollow(mainbot.KeyPair.Id))
 	r.NoError(err)
 
+	mainbot.Replicate(bertBot.KeyPair.Id)
+	bertBot.Replicate(mainbot.KeyPair.Id)
+
 	for i := 1000; i > 0; i-- {
 		_, err = bertBot.PublishLog.Publish(i)
 		r.NoError(err)
@@ -208,20 +211,8 @@ func TestNullFetched(t *testing.T) {
 
 	botgroup.Go(bs.Serve(bob))
 
-	seq, err := ali.PublishLog.Append(ssb.Contact{
-		Type:      "contact",
-		Following: true,
-		Contact:   bob.KeyPair.Id,
-	})
-	r.NoError(err)
-	r.Equal(margaret.BaseSeq(0), seq)
-
-	seq, err = bob.PublishLog.Append(ssb.Contact{
-		Type:      "contact",
-		Following: true,
-		Contact:   ali.KeyPair.Id,
-	})
-	r.NoError(err)
+	ali.Replicate(bob.KeyPair.Id)
+	bob.Replicate(ali.KeyPair.Id)
 
 	for i := 1000; i > 0; i-- {
 		_, err = bob.PublishLog.Publish(i)
@@ -241,7 +232,7 @@ func TestNullFetched(t *testing.T) {
 	mainLog.Log("msg", "check we got all the messages")
 	bobsSeqV, err := alisVersionOfBobsLog.Seq().Value()
 	r.NoError(err)
-	r.EqualValues(1000, bobsSeqV.(margaret.Seq).Seq())
+	r.EqualValues(1000-1, bobsSeqV.(margaret.Seq).Seq())
 
 	err = ali.NullFeed(bob.KeyPair.Id)
 	r.NoError(err)
@@ -261,7 +252,7 @@ func TestNullFetched(t *testing.T) {
 
 	bobsSeqV, err = alisVersionOfBobsLog.Seq().Value()
 	r.NoError(err)
-	r.EqualValues(1000, bobsSeqV.(margaret.Seq).Seq())
+	r.EqualValues(1000-1, bobsSeqV.(margaret.Seq).Seq())
 
 	ali.Shutdown()
 	bob.Shutdown()
