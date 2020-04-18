@@ -7,6 +7,7 @@ require (
 	github.com/cryptix/go v1.5.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dgraph-io/badger v2.0.0-rc2+incompatible
+	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
 	github.com/dustin/go-humanize v1.0.0
 	github.com/go-kit/kit v0.9.0
 	github.com/hashicorp/go-multierror v1.0.0
@@ -15,6 +16,7 @@ require (
 	github.com/kylelemons/godebug v1.1.0
 	github.com/libp2p/go-reuseport v0.0.1
 	github.com/machinebox/progress v0.2.0
+	github.com/matryer/is v1.3.0 // indirect
 	github.com/maxbrunsfeld/counterfeiter/v6 v6.2.2
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.1.0
@@ -23,7 +25,7 @@ require (
 	github.com/ugorji/go/codec v1.1.7
 	go.cryptoscope.co/librarian v0.2.0
 	go.cryptoscope.co/luigi v0.3.5
-	go.cryptoscope.co/margaret v0.1.5
+	go.cryptoscope.co/margaret v0.1.6
 	go.cryptoscope.co/muxrpc v1.5.4-0.20191205134222-b1563255bffa
 	go.cryptoscope.co/netwrap v0.1.1
 	go.cryptoscope.co/secretstream v1.2.2-0.20200303151838-85cf020cfee6
