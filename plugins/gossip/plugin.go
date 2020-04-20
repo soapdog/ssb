@@ -18,8 +18,6 @@ import (
 
 type HMACSecret *[32]byte
 
-type HopCount int
-
 type Promisc bool
 
 func New(
@@ -46,8 +44,6 @@ func New(
 			h.sysGauge = v
 		case metrics.Counter:
 			h.sysCtr = v
-		case HopCount:
-			h.hopCount = int(v)
 		case HMACSecret:
 			h.hmacSec = v
 		case Promisc:
@@ -55,9 +51,6 @@ func New(
 		default:
 			log.Log("warning", "unhandled option", "i", i, "type", fmt.Sprintf("%T", o))
 		}
-	}
-	if h.hopCount == 0 {
-		h.hopCount = 1
 	}
 
 	h.pushManager = NewFeedPushManager(
@@ -83,7 +76,6 @@ func New(
 		verifyMu:    &sync.Mutex{},
 		verifySinks: make(map[string]luigi.Sink),
 
-		hops:    h.hopCount,
 		hmacKey: h.hmacSec,
 
 		logger: log,
@@ -119,17 +111,11 @@ func NewHist(
 			h.sysCtr = v
 		case Promisc:
 			h.promisc = bool(v)
-		case HopCount:
-			h.hopCount = int(v)
 		case HMACSecret:
 			h.hmacSec = v
 		default:
 			log.Log("warning", "unhandled hist option", "i", i, "type", fmt.Sprintf("%T", o))
 		}
-	}
-
-	if h.hopCount == 0 {
-		h.hopCount = 1
 	}
 
 	h.pushManager = NewFeedPushManager(

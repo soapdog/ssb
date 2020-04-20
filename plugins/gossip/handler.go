@@ -28,9 +28,9 @@ type handler struct {
 
 	logger log.Logger
 
-	hmacSec  HMACSecret
-	hopCount int
-	promisc  bool // ask for remote feed even if it's not on owns fetch list
+	hmacSec HMACSecret
+
+	promisc bool // ask for remote feed even if it's not on owns fetch list
 
 	activeLock  sync.Mutex
 	activeFetch sync.Map
