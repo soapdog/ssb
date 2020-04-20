@@ -85,7 +85,8 @@ func makeFeedsLiveNetworkChain(chainLen uint) func(t *testing.T) {
 
 				if fQ == 1 {
 					msgCnt++
-					_, err := botI.PublishLog.Append(ssb.NewContactFollow(botJ.KeyPair.Id))
+					botI.Replicate(botJ.KeyPair.Id)
+					_, err := botI.PublishLog.Append(fmt.Sprintf("contact dummy %d %d", i, j))
 					r.NoError(err)
 				}
 			}
