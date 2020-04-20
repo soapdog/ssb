@@ -65,17 +65,13 @@ func (s *Sbot) newGraphReplicator() (*replicator, error) {
 	return &r, nil
 }
 
-func (r *replicator) Block(ref *ssb.FeedRef) {
-	r.current.feedWants.AddRef(ref)
-}
+func (r *replicator) Block(ref *ssb.FeedRef)   { r.current.blocked.AddRef(ref) }
+func (r *replicator) Unblock(ref *ssb.FeedRef) { r.current.blocked.Delete(ref) }
 
-func (r *replicator) Replicate(ref *ssb.FeedRef) {
-	r.current.feedWants.AddRef(ref)
-}
+func (r *replicator) Replicate(ref *ssb.FeedRef)     { r.current.feedWants.AddRef(ref) }
+func (r *replicator) DontReplicate(ref *ssb.FeedRef) { r.current.feedWants.Delete(ref) }
 
-func (r *replicator) makeLister() ssb.ReplicationLister {
-	return r.current
-}
+func (r *replicator) makeLister() ssb.ReplicationLister { return r.current }
 
 type lister struct {
 	feedWants *ssb.StrFeedSet
@@ -93,11 +89,5 @@ func (l lister) Authorize(remote *ssb.FeedRef) error {
 	return errors.New("nope - access denied")
 }
 
-func (l lister) ReplicationList() *ssb.StrFeedSet {
-	return l.feedWants
-
-}
-
-func (l lister) BlockList() *ssb.StrFeedSet {
-	return l.blocked
-}
+func (l lister) ReplicationList() *ssb.StrFeedSet { return l.feedWants }
+func (l lister) BlockList() *ssb.StrFeedSet       { return l.blocked }
