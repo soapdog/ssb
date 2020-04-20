@@ -25,7 +25,7 @@ func (s *Sbot) newGraphReplicator() (*replicator, error) {
 
 	// init graph and fill
 	var lis lister
-	lis.feedWants = r.builder.Hops(s.KeyPair.Id, 2)
+	lis.feedWants = r.builder.Hops(s.KeyPair.Id, int(s.hopCount))
 	level.Warn(s.info).Log("event", "replicate", "want", lis.feedWants.Count())
 	g, err := r.builder.Build()
 	if err != nil {
@@ -34,10 +34,6 @@ func (s *Sbot) newGraphReplicator() (*replicator, error) {
 	lis.blocked = g.BlockedList(s.KeyPair.Id)
 
 	r.current = &lis
-
-	// idx, ok := s.GraphBuilder.(librarian.SinkIndex)
-	// if ok {
-	// }
 
 	// TODO: make a smarter update mechanism
 	r.updateTicker = time.NewTicker(time.Minute * 10)
@@ -49,7 +45,7 @@ func (s *Sbot) newGraphReplicator() (*replicator, error) {
 			case <-s.rootCtx.Done():
 				return
 			}
-			newWants := r.builder.Hops(s.KeyPair.Id, 2)
+			newWants := r.builder.Hops(s.KeyPair.Id, int(s.hopCount))
 
 			refs, err := newWants.List()
 			if err != nil {
