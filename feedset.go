@@ -12,13 +12,14 @@ import (
 type strFeedMap map[librarian.Addr]struct{}
 
 type StrFeedSet struct {
-	mu  sync.Mutex
+	mu  *sync.Mutex
 	set strFeedMap
 }
 
 func NewFeedSet(size int) *StrFeedSet {
 	return &StrFeedSet{
 		set: make(strFeedMap, size),
+		mu:  &sync.Mutex{},
 	}
 }
 
@@ -60,8 +61,8 @@ func (fs StrFeedSet) List() ([]*FeedRef, error) {
 	defer fs.mu.Unlock()
 	var lst = make([]*FeedRef, len(fs.set))
 	i := 0
-	var sr StorageRef
 	for feed := range fs.set {
+		var sr StorageRef
 		err := sr.Unmarshal([]byte(feed))
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to decode map entry")
