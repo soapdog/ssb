@@ -10,8 +10,6 @@ import (
 	"log"
 	"strings"
 
-	"go.cryptoscope.co/ssb/client"
-
 	"github.com/dgraph-io/badger"
 	"github.com/pkg/errors"
 	"go.cryptoscope.co/librarian"
@@ -19,6 +17,7 @@ import (
 	"go.cryptoscope.co/margaret"
 
 	"go.cryptoscope.co/ssb"
+	"go.cryptoscope.co/ssb/client"
 	"go.cryptoscope.co/ssb/repo"
 )
 
@@ -198,13 +197,13 @@ func (ab aboutStore) CollectedFor(ref *ssb.FeedRef) (*AboutInfo, error) {
 const FolderNameAbout = "about"
 
 func (plug *Plugin) MakeSimpleIndex(r repo.Interface) (librarian.Index, librarian.SinkIndex, error) {
-	f := func(db *badger.DB) librarian.SinkIndex {
+	f := func(db *badger.DB) (librarian.SeqSetterIndex, librarian.SinkIndex) {
 		aboutIdx := libbadger.NewIndex(db, 0)
-
-		return librarian.NewSinkIndex(updateAboutMessage, aboutIdx)
+		snk := librarian.NewSinkIndex(updateAboutMessage, aboutIdx)
+		return aboutIdx, snk
 	}
 
-	db, update, err := repo.OpenBadgerIndex(r, FolderNameAbout, f)
+	db, _, update, err := repo.OpenBadgerIndex(r, FolderNameAbout, f)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "error getting about index")
 	}
