@@ -35,6 +35,7 @@ type Client struct {
 	closer io.Closer
 
 	appKeyBytes []byte
+	Handshake   *secretstream.Client
 }
 
 func newClientWithOptions(opts []Option) (*Client, error) {
@@ -84,7 +85,7 @@ func NewTCP(own *ssb.KeyPair, remote net.Addr, opts ...Option) (*Client, error) 
 		return nil, err
 	}
 
-	shsClient, err := secretstream.NewClient(own.Pair, c.appKeyBytes)
+	c.Handshake, err = secretstream.NewClient(own.Pair, c.appKeyBytes)
 	if err != nil {
 		return nil, errors.Wrap(err, "ssbClient: error creating secretstream.Client")
 	}
@@ -103,7 +104,7 @@ func NewTCP(own *ssb.KeyPair, remote net.Addr, opts ...Option) (*Client, error) 
 	}
 	copy(pubKey[:], shsAddr.PubKey)
 
-	conn, err := netwrap.Dial(netwrap.GetAddr(remote, "tcp"), shsClient.ConnWrapper(pubKey))
+	conn, err := netwrap.Dial(netwrap.GetAddr(remote, "tcp"), c.Handshake.ConnWrapper(pubKey))
 	if err != nil {
 		return nil, errors.Wrap(err, "error dialing")
 	}

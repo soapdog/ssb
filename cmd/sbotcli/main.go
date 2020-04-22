@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/cryptix/go/logging"
+	"github.com/go-kit/kit/log/level"
 	"github.com/pkg/errors"
 	goon "github.com/shurcooL/go-goon"
 	"go.cryptoscope.co/muxrpc"
@@ -69,7 +70,7 @@ var app = cli.App{
 		&cli.StringFlag{Name: "remoteKey", Value: "", Usage: "the remote pubkey you are connecting to (by default the local key)"},
 		&keyFileFlag,
 		&unixSockFlag,
-		&cli.BoolFlag{Name: "verbose,vv", Usage: "print muxrpc packets"},
+		// &cli.BoolFlag{Name: "verbose,vv", Usage: "print muxrpc packets"},
 	},
 
 	Before: initClient,
@@ -82,6 +83,7 @@ var app = cli.App{
 		callCmd,
 		connectCmd,
 		queryCmd,
+		tunnelCmd,
 		privateCmd,
 		publishCmd,
 	},
@@ -124,7 +126,8 @@ func initClient(ctx *cli.Context) error {
 	}
 	var err error
 	client, err = ssbClient.NewUnix(sockPath, ssbClient.WithContext(longctx))
-	return errors.Wrap(err, "unix-path based client init failed")
+	level.Warn(log).Log("err", err, "msg", "unix-path based client init failed")
+	return initClientTCP(ctx)
 }
 
 func initClientTCP(ctx *cli.Context) error {
@@ -149,7 +152,7 @@ func initClientTCP(ctx *cli.Context) error {
 		return errors.Wrapf(err, "int: failed to resolve TCP address")
 	}
 
-	shsAddr := netwrap.WrapAddr(plainAddr, secretstream.Addr{remotPubKey[:]})
+	shsAddr := netwrap.WrapAddr(plainAddr, secretstream.Addr{PubKey: remotPubKey[:]})
 
 	client, err = ssbClient.NewTCP(localKey, shsAddr,
 		ssbClient.WithSHSAppKey(ctx.String("shscap")),
