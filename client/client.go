@@ -9,6 +9,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"time"
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -23,7 +24,6 @@ import (
 	"go.cryptoscope.co/ssb"
 	"go.cryptoscope.co/ssb/blobstore"
 	"go.cryptoscope.co/ssb/message"
-	"go.cryptoscope.co/ssb/plugins/whoami"
 )
 
 type Client struct {
@@ -36,6 +36,11 @@ type Client struct {
 
 	appKeyBytes []byte
 	Handshake   *secretstream.Client
+	keyPair     *ssb.KeyPair
+}
+
+func (c *Client) Self() *ssb.FeedRef {
+	return c.keyPair.Id
 }
 
 func newClientWithOptions(opts []Option) (*Client, error) {
@@ -84,6 +89,7 @@ func NewTCP(own *ssb.KeyPair, remote net.Addr, opts ...Option) (*Client, error) 
 	if err != nil {
 		return nil, err
 	}
+	c.keyPair = own
 
 	c.Handshake, err = secretstream.NewClient(own.Pair, c.appKeyBytes)
 	if err != nil {
@@ -110,8 +116,9 @@ func NewTCP(own *ssb.KeyPair, remote net.Addr, opts ...Option) (*Client, error) 
 	}
 	c.closer = conn
 
-	h := whoami.New(c.logger, own.Id).Handler()
-
+	// h := whoami.New(c.logger, own.Id).Handler()
+	h := noopHandler{logger: c.logger, client: c}
+	// conn = debug.WrapConn(c.logger, conn)
 	c.Endpoint = muxrpc.HandleWithRemote(muxrpc.NewPacker(conn), h, conn.RemoteAddr())
 
 	srv, ok := c.Endpoint.(muxrpc.Server)
@@ -341,11 +348,113 @@ func (c Client) Tangles(o message.TanglesArgs) (luigi.Source, error) {
 
 type noopHandler struct {
 	logger log.Logger
+
+	client *Client
 }
 
 func (h noopHandler) HandleConnect(ctx context.Context, edp muxrpc.Endpoint) {
 }
 
 func (h noopHandler) HandleCall(ctx context.Context, req *muxrpc.Request, edp muxrpc.Endpoint) {
-	req.Stream.CloseWithError(fmt.Errorf("go-ssb/client: unsupported call"))
+
+	// TODO: properly make this a real handler on sbot
+	// this is where new connections arrive right now, so this side plays _server_ on the tunneled duplex
+	if req.Method.String() != "tunnel.connect" {
+		h.logger.Log("call", req.Method.String(), "args", string(req.RawArgs), "tipe", req.Type)
+		return
+	}
+	// not really used anyhow?!
+	// target == me ?
+	// portal == edp.remote?!
+	// might want to check resulted auth from conn against origin?!
+	// type tunConnectArg struct {
+	// 	Origin ssb.FeedRef `json:"origin"`
+	// 	Portal ssb.FeedRef `json:"portal"`
+	// 	Target ssb.FeedRef `json:"target"`
+	// }
+	// var args []tunConnectArg
+	// err := json.Unmarshal(req.RawArgs, &args)
+	// if err != nil {
+	// 	h.logger.Log("err", err)
+	// 	return
+	// }
+
+	srv, err := secretstream.NewServer(h.client.keyPair.Pair, h.client.appKeyBytes)
+	if err != nil {
+		h.logger.Log("err", err)
+		return
+	}
+
+	rd := muxrpc.NewSourceReader(req.Stream)
+	wr := muxrpc.NewSinkWriter(req.Stream)
+
+	wrap := srv.ListenerWrapper()
+
+	lis, err := wrap(&pseudeLis{next: &pseudoConn{Reader: rd, WriteCloser: wr}})
+	if err != nil {
+		h.logger.Log("err", err)
+		return
+	}
+	conn, err := lis.Accept()
+	if err != nil {
+		h.logger.Log("err", err)
+		return
+	}
+	h.logger.Log("hanshake", "ok")
+	// TODO: this should be a real muxrpc handler but you get the idea.. ;)
+	io.Copy(os.Stderr, conn)
+}
+
+type pseudeLis struct {
+	next net.Conn
+	// local net.Addr
+}
+
+func (pl pseudeLis) Accept() (net.Conn, error) {
+	return pl.next, nil
+}
+
+func (pl pseudeLis) Addr() net.Addr {
+	local, err := net.ResolveIPAddr("ip4", "127.0.0.1")
+	if err != nil {
+		panic(err)
+	}
+	return local
+}
+
+func (pl pseudeLis) Close() error { return nil }
+
+type pseudoConn struct {
+	io.Reader
+	io.WriteCloser
+
+	local, remote net.Addr
+}
+
+var _ net.Conn = (*pseudoConn)(nil)
+
+// LocalAddr returns the local net.Addr with the local public key
+func (conn *pseudoConn) LocalAddr() net.Addr {
+	return conn.local
+}
+
+// RemoteAddr returns the remote net.Addr with the remote public key
+func (conn *pseudoConn) RemoteAddr() net.Addr {
+	return conn.remote
+}
+
+// SetDeadline passes the call to the underlying net.Conn
+func (conn *pseudoConn) SetDeadline(t time.Time) error {
+	panic("TODO: implement setDeadline")
+	// return conn.conn.SetDeadline(t)
+}
+
+// SetReadDeadline passes the call to the underlying net.Conn
+func (conn *pseudoConn) SetReadDeadline(t time.Time) error {
+	panic("TODO: implement setReadDeadline")
+}
+
+// SetWriteDeadline passes the call to the underlying net.Conn
+func (conn *pseudoConn) SetWriteDeadline(t time.Time) error {
+	panic("TODO: implement setWriteDeadline")
 }
