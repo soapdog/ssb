@@ -267,10 +267,8 @@ func OpenBadgerIndex(r Interface, name string, f func(*badger.DB) librarian.Sink
 		if err == ssb.ErrShuttingDown {
 			return nil
 		}
-
 		return errors.Wrap(err, "contacts index pump failed")
 	}
-
 	return db, sinkidx, serve, nil
 }
 

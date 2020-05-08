@@ -309,7 +309,6 @@ func main() {
 		checkAndLog(err)
 		return
 	}
-
 	SystemEvents.With("event", "openedRepo").Add(1)
 	feeds, err := uf.List()
 	checkFatal(err)

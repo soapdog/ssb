@@ -20,6 +20,7 @@ import (
 	"gonum.org/v1/gonum/graph/simple"
 
 	"go.cryptoscope.co/ssb"
+	"io"
 )
 
 // Builder can build a trust graph and answer other questions
@@ -42,6 +43,8 @@ type Builder interface {
 	Authorizer(from *ssb.FeedRef, maxHops int) ssb.Authorizer
 
 	DeleteAuthor(who *ssb.FeedRef) error
+
+	io.Closer
 }
 
 type IndexingBuilder interface {
@@ -67,6 +70,10 @@ func NewBuilder(log kitlog.Logger, db *badger.DB) *builder {
 		log: log,
 	}
 	return b
+}
+
+func (b *builder) Close() error {
+	return b.idx.Close()
 }
 
 func (b *builder) OpenIndex() librarian.SinkIndex {

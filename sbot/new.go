@@ -172,6 +172,7 @@ func initSbot(s *Sbot) (*Sbot, error) {
 		}
 		s.serveIndex(ctx, "contacts", serveContacts)
 		s.GraphBuilder = gb
+		s.closers.addCloser(gb)
 	}
 
 	if s.disableNetwork {
