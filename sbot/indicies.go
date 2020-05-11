@@ -3,11 +3,10 @@
 package sbot
 
 import (
-	"context"
-
-	"github.com/go-kit/kit/log/level"
 	"github.com/pkg/errors"
 	"go.cryptoscope.co/librarian"
+	"go.cryptoscope.co/luigi"
+	"go.cryptoscope.co/margaret"
 	"go.cryptoscope.co/margaret/multilog"
 	"go.cryptoscope.co/ssb"
 	"go.cryptoscope.co/ssb/plugins2"
@@ -56,12 +55,12 @@ func MountPlugin(plug ssb.Plugin, mode plugins2.AuthMode) Option {
 
 func MountMultiLog(name string, fn repo.MakeMultiLog) Option {
 	return func(s *Sbot) error {
-		mlog, serveFunc, err := fn(repo.New(s.repoPath))
+		mlog, updateSink, err := fn(repo.New(s.repoPath))
 		if err != nil {
 			return errors.Wrapf(err, "sbot/index: failed to open idx %s", name)
 		}
 		s.closers.addCloser(mlog)
-		s.serveIndex(s.rootCtx, name, serveFunc)
+		s.serveIndex(name, updateSink)
 		s.mlogIndicies[name] = mlog
 		return nil
 	}
@@ -69,11 +68,11 @@ func MountMultiLog(name string, fn repo.MakeMultiLog) Option {
 
 func MountSimpleIndex(name string, fn repo.MakeSimpleIndex) Option {
 	return func(s *Sbot) error {
-		idx, serveFunc, err := fn(repo.New(s.repoPath))
+		idx, updateSink, err := fn(repo.New(s.repoPath))
 		if err != nil {
 			return errors.Wrapf(err, "sbot/index: failed to open idx %s", name)
 		}
-		s.serveIndex(s.rootCtx, name, serveFunc)
+		s.serveIndex(name, updateSink)
 		s.simpleIndex[name] = idx
 		return nil
 	}
@@ -107,12 +106,34 @@ func (s *Sbot) GetIndexNamesMultiLog() []string {
 
 var _ ssb.Indexer = (*Sbot)(nil)
 
-func (s *Sbot) serveIndex(ctx context.Context, name string, f repo.ServeFunc) {
-	s.idxDone.Go(func() error { // could improve this with context version
-		err := f(ctx, s.RootLog, s.liveIndexUpdates)
+func (s *Sbot) serveIndex(name string, snk librarian.SinkIndex) {
+	s.idxDone.Go(func() error {
+
+		src, err := s.RootLog.Query(margaret.Live(false), margaret.SeqWrap(true), snk.QuerySpec())
 		if err != nil {
-			level.Warn(s.info).Log("event", "idx server exited", "idx", name, "error", err)
-			s.Shutdown()
+			return errors.Wrapf(err, "serveIdx(%s) error querying rootLog for message backlog", name)
+		}
+
+		err = luigi.Pump(s.rootCtx, snk, src)
+		if err == ssb.ErrShuttingDown {
+			return nil
+		}
+
+		if !s.liveIndexUpdates {
+			return nil
+		}
+
+		src, err = s.RootLog.Query(margaret.Live(true), margaret.SeqWrap(true), snk.QuerySpec())
+		if err != nil {
+			return errors.Wrapf(err, "serveIdx(%s) error querying rootLog for live index updates", name)
+		}
+
+		err = luigi.Pump(s.rootCtx, snk, src)
+		if err == ssb.ErrShuttingDown {
+			return nil
+		}
+
+		if err != nil {
 			return errors.Wrapf(err, "sbot: %s idx update func errored", name)
 		}
 		return nil

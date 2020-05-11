@@ -7,6 +7,7 @@ require (
 	github.com/cryptix/go v1.5.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dgraph-io/badger v2.0.0-rc2+incompatible
+	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
 	github.com/dustin/go-humanize v1.0.0
 	github.com/go-kit/kit v0.9.0
 	github.com/hashicorp/go-multierror v1.0.0
@@ -49,3 +50,7 @@ require (
 replace golang.org/x/crypto => github.com/cryptix/golang_x_crypto v0.0.0-20200303113948-2939d6771b24
 
 replace go.cryptoscope.co/muxrpc => /home/cryptix/go-repos/muxrpc
+
+replace go.cryptoscope.co/margaret => /home/cryptix/go-repos/margaret
+
+replace go.cryptoscope.co/librarian => /home/cryptix/go-repos/librarian/

@@ -131,17 +131,17 @@ func initSbot(s *Sbot) (*Sbot, error) {
 		}
 	}
 
-	if _, ok := s.simpleIndex["content-delete-requests"]; !ok {
-		var dcrTrigger dropContentTrigger
-		dcrTrigger.logger = kitlog.With(log, "module", "dcrTrigger")
-		dcrTrigger.root = s.RootLog
-		dcrTrigger.feeds = uf
-		dcrTrigger.nuller = s
-		err = MountSimpleIndex("content-delete-requests", dcrTrigger.MakeSimpleIndex)(s)
-		if err != nil {
-			return nil, errors.Wrap(err, "sbot: failed to open load default DCR index")
-		}
-	}
+	// if _, ok := s.simpleIndex["content-delete-requests"]; !ok {
+	// 	var dcrTrigger dropContentTrigger
+	// 	dcrTrigger.logger = kitlog.With(log, "module", "dcrTrigger")
+	// 	dcrTrigger.root = s.RootLog
+	// 	dcrTrigger.feeds = uf
+	// 	dcrTrigger.nuller = s
+	// 	err = MountSimpleIndex("content-delete-requests", dcrTrigger.MakeSimpleIndex)(s)
+	// 	if err != nil {
+	// 		return nil, errors.Wrap(err, "sbot: failed to open load default DCR index")
+	// 	}
+	// }
 
 	var pubopts = []message.PublishOption{
 		message.UseNowTimestamps(true),
@@ -166,11 +166,11 @@ func initSbot(s *Sbot) (*Sbot, error) {
 			return nil, errors.Wrap(err, "sbot: NewLogBuilder failed")
 		}
 	} else {
-		gb, serveContacts, err := indexes.OpenContacts(kitlog.With(log, "module", "graph"), r)
+		gb, updateIdx, err := indexes.OpenContacts(kitlog.With(log, "module", "graph"), r)
 		if err != nil {
 			return nil, errors.Wrap(err, "sbot: OpenContacts failed")
 		}
-		s.serveIndex(ctx, "contacts", serveContacts)
+		s.serveIndex("contacts", updateIdx)
 		s.GraphBuilder = gb
 		s.closers.addCloser(gb)
 	}
