@@ -3,6 +3,12 @@
 package sbot
 
 import (
+	"context"
+	"time"
+
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
+	"github.com/machinebox/progress"
 	"github.com/pkg/errors"
 	"go.cryptoscope.co/librarian"
 	"go.cryptoscope.co/luigi"
@@ -111,12 +117,41 @@ func (s *Sbot) serveIndex(name string, snk librarian.SinkIndex) {
 
 		src, err := s.RootLog.Query(margaret.Live(false), margaret.SeqWrap(true), snk.QuerySpec())
 		if err != nil {
-			return errors.Wrapf(err, "serveIdx(%s) error querying rootLog for message backlog", name)
+			return errors.Wrapf(err, "sbot index(%s) error querying receiveLog for message backlog", name)
 		}
 
-		err = luigi.Pump(s.rootCtx, snk, src)
+		currentSeqV, err := s.RootLog.Seq().Value()
+		if err != nil {
+			return err
+		}
+
+		var ps progressSink
+		ps.backing = snk
+
+		totalMessages := currentSeqV.(margaret.Seq).Seq()
+
+		ctx, cancel := context.WithCancel(s.rootCtx)
+		go func() {
+			p := progress.NewTicker(ctx, &ps, totalMessages, 3*time.Second)
+			pinfo := log.With(level.Info(s.info), "index", name, "event", "index-progress")
+			for remaining := range p {
+				estDone := remaining.Estimated()
+				// how much time until it's done?
+				timeLeft := estDone.Sub(time.Now()).Round(time.Second)
+
+				pinfo.Log("done", remaining.Percent(), "time-left", timeLeft)
+				//progressFn(remaining.Percent(), timeLeft)
+				// TODO: set index state info
+			}
+		}()
+
+		err = luigi.Pump(s.rootCtx, &ps, src)
+		cancel()
 		if err == ssb.ErrShuttingDown {
 			return nil
+		}
+		if err != nil {
+			return errors.Wrapf(err, "sbot index(%s) update failed", name)
 		}
 
 		if !s.liveIndexUpdates {
@@ -125,17 +160,50 @@ func (s *Sbot) serveIndex(name string, snk librarian.SinkIndex) {
 
 		src, err = s.RootLog.Query(margaret.Live(true), margaret.SeqWrap(true), snk.QuerySpec())
 		if err != nil {
-			return errors.Wrapf(err, "serveIdx(%s) error querying rootLog for live index updates", name)
+			return errors.Wrapf(err, "sbot index(%s) failed to query receive log for live updates", name)
 		}
+
+		// TODO: set index state info to live
 
 		err = luigi.Pump(s.rootCtx, snk, src)
 		if err == ssb.ErrShuttingDown {
 			return nil
 		}
-
 		if err != nil {
-			return errors.Wrapf(err, "sbot: %s idx update func errored", name)
+			return errors.Wrapf(err, "sbot index(%s) update failed", name)
 		}
 		return nil
 	})
 }
+
+type progressSink struct {
+	erred error
+	n     uint
+
+	backing luigi.Sink
+}
+
+var (
+	_ luigi.Sink       = &progressSink{}
+	_ progress.Counter = &progressSink{}
+)
+
+func (p progressSink) N() int64 { return int64(p.n) }
+
+func (p progressSink) Err() error { return p.erred }
+
+func (ps *progressSink) Pour(ctx context.Context, v interface{}) error {
+	if ps.erred != nil {
+		return ps.erred
+	}
+
+	err := ps.backing.Pour(ctx, v)
+	if err != nil {
+		ps.erred = err
+		return err
+	}
+	ps.n++
+	return nil
+}
+
+func (ps progressSink) Close() error { return ps.backing.Close() }

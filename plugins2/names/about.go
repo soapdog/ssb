@@ -197,14 +197,14 @@ func (ab aboutStore) CollectedFor(ref *ssb.FeedRef) (*AboutInfo, error) {
 
 const FolderNameAbout = "about"
 
-func (plug *Plugin) MakeSimpleIndex(r repo.Interface) (librarian.Index, repo.ServeFunc, error) {
+func (plug *Plugin) MakeSimpleIndex(r repo.Interface) (librarian.Index, librarian.SinkIndex, error) {
 	f := func(db *badger.DB) librarian.SinkIndex {
 		aboutIdx := libbadger.NewIndex(db, 0)
 
 		return librarian.NewSinkIndex(updateAboutMessage, aboutIdx)
 	}
 
-	db, idx, serve, err := repo.OpenBadgerIndex(r, FolderNameAbout, f)
+	db, update, err := repo.OpenBadgerIndex(r, FolderNameAbout, f)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "error getting about index")
 	}
@@ -212,8 +212,8 @@ func (plug *Plugin) MakeSimpleIndex(r repo.Interface) (librarian.Index, repo.Ser
 	// TODO: hook serve to close db
 
 	plug.about = aboutStore{db}
-
-	return idx, serve, err
+	// todo db > idx
+	return nil, update, err
 }
 
 func updateAboutMessage(ctx context.Context, seq margaret.Seq, msgv interface{}, idx librarian.SetterIndex) error {
