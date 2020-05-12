@@ -113,7 +113,8 @@ func (s *Sbot) GetIndexNamesMultiLog() []string {
 
 var _ ssb.Indexer = (*Sbot)(nil)
 
-func (s *Sbot) IndexesInSync() {
+// WaitUntilIndexesAreSynced blocks until all the index processing is in sync with the rootlog
+func (s *Sbot) WaitUntilIndexesAreSynced() {
 	s.idxInSync.Wait()
 }
 
