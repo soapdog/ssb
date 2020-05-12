@@ -26,7 +26,7 @@ func (s *Sbot) newGraphReplicator() (*replicator, error) {
 	// init graph and fill
 	var lis lister
 	lis.feedWants = r.builder.Hops(s.KeyPair.Id, int(s.hopCount))
-	level.Warn(s.info).Log("event", "replicate", "want", lis.feedWants.Count())
+	level.Warn(s.info).Log("event", "replicate", "want", lis.feedWants.Count(), "hops", s.hopCount)
 	g, err := r.builder.Build()
 	if err != nil {
 		return nil, err
@@ -55,6 +55,21 @@ func (s *Sbot) newGraphReplicator() (*replicator, error) {
 			for _, ref := range refs {
 				r.current.feedWants.AddRef(ref)
 			}
+
+			// make sure we dont fetch and allow blocked feeds
+			g, err := r.builder.Build()
+			if err != nil {
+				continue
+			}
+
+			lis.blocked = g.BlockedList(s.KeyPair.Id)
+			lst, err := lis.blocked.List()
+			if err == nil {
+				for _, bf := range lst {
+					r.current.feedWants.Delete(bf)
+				}
+			}
+
 		}
 	}()
 
