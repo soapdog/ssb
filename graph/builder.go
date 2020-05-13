@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"math"
 	"sync"
 
@@ -20,7 +21,6 @@ import (
 	"gonum.org/v1/gonum/graph/simple"
 
 	"go.cryptoscope.co/ssb"
-	"io"
 )
 
 // Builder can build a trust graph and answer other questions
@@ -54,8 +54,11 @@ type IndexingBuilder interface {
 }
 
 type builder struct {
-	kv  *badger.DB
-	idx librarian.SeqSetterIndex
+	kv *badger.DB
+
+	idx     librarian.SeqSetterIndex
+	idxSink librarian.SinkIndex
+
 	log kitlog.Logger
 
 	cacheLock   sync.Mutex
@@ -73,59 +76,68 @@ func NewBuilder(log kitlog.Logger, db *badger.DB) *builder {
 }
 
 func (b *builder) Close() error {
-	return b.idx.Close()
+	if b.idxSink == nil {
+		b.kv.Close()
+		return nil
+	}
+	return b.idxSink.Close()
+}
+
+func (b *builder) indexUpdateFunc(ctx context.Context, seq margaret.Seq, val interface{}, idx librarian.SetterIndex) error {
+	b.cacheLock.Lock()
+	defer b.cacheLock.Unlock()
+
+	if nulled, ok := val.(error); ok {
+		if margaret.IsErrNulled(nulled) {
+			return nil
+		}
+		return nulled
+	}
+
+	abs, ok := val.(ssb.Message)
+	if !ok {
+		err := errors.Errorf("graph/idx: invalid msg value %T", val)
+		b.log.Log("msg", "contact eval failed", "reason", err)
+		return err
+	}
+
+	var c ssb.Contact
+	err := json.Unmarshal(abs.ContentBytes(), &c)
+	if err != nil {
+		// just ignore invalid messages, nothing to do with them (unless you are debugging something)
+		// err = errors.Wrapf(err, "db/idx contacts: first json unmarshal failed (msg: %v)", abs.Key().Ref())
+		// log.Log("msg", "skipped contact message", "reason", err)
+		return nil
+	}
+
+	addr := abs.Author().StoredAddr()
+	addr += c.Contact.StoredAddr()
+	switch {
+	case c.Following:
+		err = idx.Set(ctx, addr, 1)
+	case c.Blocking:
+		err = idx.Set(ctx, addr, 2)
+	default:
+		err = idx.Set(ctx, addr, 0)
+		// cryptix: not sure why this doesn't work
+		// it also removes the node if this is the only follow from that peer
+		// 3 state handling seems saner
+		// err = idx.Delete(ctx, librarian.Addr(addr))
+	}
+	if err != nil {
+		return errors.Wrapf(err, "db/idx contacts: failed to update index. %+v", c)
+	}
+
+	b.cachedGraph = nil
+	// TODO: patch existing graph
+	return nil
 }
 
 func (b *builder) OpenIndex() librarian.SinkIndex {
-	return librarian.NewSinkIndex(func(ctx context.Context, seq margaret.Seq, val interface{}, idx librarian.SetterIndex) error {
-		b.cacheLock.Lock()
-		defer b.cacheLock.Unlock()
-
-		if nulled, ok := val.(error); ok {
-			if margaret.IsErrNulled(nulled) {
-				return nil
-			}
-			return nulled
-		}
-
-		abs, ok := val.(ssb.Message)
-		if !ok {
-			err := errors.Errorf("graph/idx: invalid msg value %T", val)
-			b.log.Log("msg", "contact eval failed", "reason", err)
-			return err
-		}
-
-		var c ssb.Contact
-		err := json.Unmarshal(abs.ContentBytes(), &c)
-		if err != nil {
-			// just ignore invalid messages, nothing to do with them (unless you are debugging something)
-			// err = errors.Wrapf(err, "db/idx contacts: first json unmarshal failed (msg: %v)", abs.Key().Ref())
-			// log.Log("msg", "skipped contact message", "reason", err)
-			return nil
-		}
-
-		addr := abs.Author().StoredAddr()
-		addr += c.Contact.StoredAddr()
-		switch {
-		case c.Following:
-			err = idx.Set(ctx, addr, 1)
-		case c.Blocking:
-			err = idx.Set(ctx, addr, 2)
-		default:
-			err = idx.Set(ctx, addr, 0)
-			// cryptix: not sure why this doesn't work
-			// it also removes the node if this is the only follow from that peer
-			// 3 state handling seems saner
-			// err = idx.Delete(ctx, librarian.Addr(addr))
-		}
-		if err != nil {
-			return errors.Wrapf(err, "db/idx contacts: failed to update index. %+v", c)
-		}
-
-		b.cachedGraph = nil
-		// TODO: patch existing graph
-		return nil
-	}, b.idx)
+	if b.idxSink == nil {
+		b.idxSink = librarian.NewSinkIndex(b.indexUpdateFunc, b.idx)
+	}
+	return b.idxSink
 }
 
 func (bld *builder) State(a, b *ssb.FeedRef) int {
