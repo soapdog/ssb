@@ -44,6 +44,9 @@ func (s *Sbot) Close() error {
 	if s.closed {
 		return s.closeErr
 	}
+	if s.replicator != nil {
+		s.replicator.updateTicker.Stop()
+	}
 
 	closeEvt := kitlog.With(s.info, "event", "sbot closing")
 	s.closed = true
@@ -67,6 +70,7 @@ func (s *Sbot) Close() error {
 		s.closeErr = err
 		return s.closeErr
 	}
+
 	level.Info(closeEvt).Log("msg", "closers closed")
 	return nil
 }
@@ -179,6 +183,11 @@ func initSbot(s *Sbot) (*Sbot, error) {
 		return s, nil
 	}
 
+	s.replicator, err = s.newGraphReplicator()
+	if err != nil {
+		return nil, err
+	}
+
 	// TODO: make plugabble
 	// var peerPlug *peerinvites.Plugin
 	// if mt, ok := s.mlogIndicies[multilogs.IndexNameFeeds]; ok {
@@ -193,11 +202,13 @@ func initSbot(s *Sbot) (*Sbot, error) {
 
 	var inviteService *legacyinvites.Service
 
-	auth := s.GraphBuilder.Authorizer(s.KeyPair.Id, int(s.hopCount+2))
+	// auth := s.GraphBuilder.Authorizer(s.KeyPair.Id, int(s.hopCount+2))
 	mkHandler := func(conn net.Conn) (muxrpc.Handler, error) {
 		// bypassing badger-close bug to go through with an accept (or not) before closing the bot
 		s.closedMu.Lock()
 		defer s.closedMu.Unlock()
+
+		auth := s.replicator.makeLister()
 
 		remote, err := ssb.GetFeedRefFromAddr(conn.RemoteAddr())
 		if err != nil {
@@ -289,13 +300,13 @@ func initSbot(s *Sbot) (*Sbot, error) {
 	}
 	s.public.Register(gossip.New(ctx,
 		kitlog.With(log, "plugin", "gossip"),
-		s.KeyPair.Id, s.RootLog, uf, s.GraphBuilder,
+		s.KeyPair.Id, s.RootLog, uf, s.replicator.makeLister(),
 		histOpts...))
 
 	// incoming createHistoryStream handler
 	hist := gossip.NewHist(ctx,
 		kitlog.With(log, "plugin", "gossip/hist"),
-		s.KeyPair.Id, s.RootLog, uf, s.GraphBuilder,
+		s.KeyPair.Id, s.RootLog, uf, s.replicator.makeLister(),
 		histOpts...)
 	s.public.Register(hist)
 

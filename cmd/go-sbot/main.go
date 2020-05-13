@@ -339,13 +339,10 @@ func main() {
 		tg, err := sbot.GraphBuilder.Build()
 		checkAndLog(err)
 		botRef := sbot.KeyPair.Id
-		for blocked := range tg.BlockedList(botRef) {
-			var sr ssb.StorageRef
-			err = sr.Unmarshal([]byte(blocked))
-			checkAndLog(err)
-			blockedRef, err := sr.FeedRef()
-			checkAndLog(err)
 
+		lst, err := tg.BlockedList(botRef).List()
+		checkAndLog(err)
+		for _, blockedRef := range lst {
 			blocks := tg.Blocks(botRef, blockedRef)
 			if !blocks {
 				dbState := sbot.GraphBuilder.State(botRef, blockedRef)
@@ -353,7 +350,7 @@ func main() {
 				continue
 			}
 
-			isStored, err := multilog.Has(uf, blocked)
+			isStored, err := multilog.Has(uf, blockedRef.StoredAddr())
 			checkAndLog(err)
 			if isStored {
 				level.Info(log).Log("event", "nulled feed", "ref", blockedRef.Ref())

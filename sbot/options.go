@@ -94,6 +94,8 @@ type Sbot struct {
 	eventCounter metrics.Counter
 	systemGauge  metrics.Gauge
 	latency      metrics.Histogram
+
+	*replicator
 }
 
 type Option func(*Sbot) error
