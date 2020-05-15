@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"io"
 	"math"
 	"sync"
 
@@ -43,14 +42,12 @@ type Builder interface {
 	Authorizer(from *ssb.FeedRef, maxHops int) ssb.Authorizer
 
 	DeleteAuthor(who *ssb.FeedRef) error
-
-	io.Closer
 }
 
 type IndexingBuilder interface {
 	Builder
 
-	OpenIndex() librarian.SinkIndex
+	OpenIndex() (librarian.SeqSetterIndex, librarian.SinkIndex)
 }
 
 type builder struct {
@@ -73,14 +70,6 @@ func NewBuilder(log kitlog.Logger, db *badger.DB) *builder {
 		log: log,
 	}
 	return b
-}
-
-func (b *builder) Close() error {
-	if b.idxSink == nil {
-		b.kv.Close()
-		return nil
-	}
-	return b.idxSink.Close()
 }
 
 func (b *builder) indexUpdateFunc(ctx context.Context, seq margaret.Seq, val interface{}, idx librarian.SetterIndex) error {
@@ -133,11 +122,11 @@ func (b *builder) indexUpdateFunc(ctx context.Context, seq margaret.Seq, val int
 	return nil
 }
 
-func (b *builder) OpenIndex() librarian.SinkIndex {
+func (b *builder) OpenIndex() (librarian.SeqSetterIndex, librarian.SinkIndex) {
 	if b.idxSink == nil {
 		b.idxSink = librarian.NewSinkIndex(b.indexUpdateFunc, b.idx)
 	}
-	return b.idxSink
+	return b.idx, b.idxSink
 }
 
 func (bld *builder) State(a, b *ssb.FeedRef) int {
