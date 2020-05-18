@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"runtime"
 	"time"
 
 	"github.com/go-kit/kit/log"
@@ -40,11 +41,12 @@ func (h *handler) fetchAll(
 	// and manage live feeds more granularly across open connections
 
 	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	fetchGroup, ctx := errgroup.WithContext(ctx)
 	work := make(chan *ssb.FeedRef)
 
 	n := 1 + (len(lst) / 10)
-	const maxWorker = 50
+	maxWorker := runtime.NumCPU()
 	if n > maxWorker { // n = max(n,maxWorker)
 		n = maxWorker
 	}
@@ -56,7 +58,6 @@ func (h *handler) fetchAll(
 		select {
 		case <-ctx.Done():
 			close(work)
-			cancel()
 			fetchGroup.Wait()
 			return ctx.Err()
 		case work <- r:
