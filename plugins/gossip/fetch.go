@@ -28,7 +28,6 @@ func (h *handler) fetchAll(
 	e muxrpc.Endpoint,
 	set *ssb.StrFeedSet,
 ) error {
-
 	lst, err := set.List()
 	if err != nil {
 		return err
@@ -108,9 +107,10 @@ func (g *handler) fetchFeed(
 	default:
 	}
 	// check our latest
-	addr := fr.StoredAddr()
+	frAddr := fr.StoredAddr()
+	addr := string(frAddr)
 	g.activeLock.Lock()
-	_, ok := g.activeFetch.Load(addr)
+	_, ok := g.activeFetch[addr]
 	if ok {
 		//level.Debug(g.logger).Log("fetchFeed", "crawl active", "addr", fr.ShortRef())
 		g.activeLock.Unlock()
@@ -119,17 +119,18 @@ func (g *handler) fetchFeed(
 	if g.sysGauge != nil {
 		g.sysGauge.With("part", "fetches").Add(1)
 	}
-	g.activeFetch.Store(addr, true)
+
+	g.activeFetch[addr] = struct{}{}
 	g.activeLock.Unlock()
 	defer func() {
 		g.activeLock.Lock()
-		g.activeFetch.Delete(addr)
+		delete(g.activeFetch, addr)
 		g.activeLock.Unlock()
 		if g.sysGauge != nil {
 			g.sysGauge.With("part", "fetches").Add(-1)
 		}
 	}()
-	userLog, err := g.UserFeeds.Get(addr)
+	userLog, err := g.UserFeeds.Get(frAddr)
 	if err != nil {
 		return errors.Wrapf(err, "failed to open sublog for user")
 	}
