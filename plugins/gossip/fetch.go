@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"runtime"
 	"time"
 
 	"github.com/go-kit/kit/log"
@@ -20,15 +21,18 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"go.cryptoscope.co/ssb"
-	"go.cryptoscope.co/ssb/graph"
 	"go.cryptoscope.co/ssb/message"
 )
 
 func (h *handler) fetchAll(
 	ctx context.Context,
 	e muxrpc.Endpoint,
-	fs *graph.StrFeedSet,
+	set *ssb.StrFeedSet,
 ) error {
+	lst, err := set.List()
+	if err != nil {
+		return err
+	}
 	// we don't just want them all parallel right nw
 	// this kind of concurrency is way to harsh on the runtime
 	// we need some kind of FeedManager, similar to Blobs
@@ -36,21 +40,13 @@ func (h *handler) fetchAll(
 	// due for a (probabilistic) update
 	// and manage live feeds more granularly across open connections
 
-	lst, err := fs.List()
-	if err != nil {
-		return err
-	}
-	tGraph, err := h.GraphBuilder.Build()
-	if err != nil {
-		return err
-	}
-
 	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	fetchGroup, ctx := errgroup.WithContext(ctx)
 	work := make(chan *ssb.FeedRef)
 
 	n := 1 + (len(lst) / 10)
-	const maxWorker = 50
+	maxWorker := runtime.NumCPU()
 	if n > maxWorker { // n = max(n,maxWorker)
 		n = maxWorker
 	}
@@ -59,13 +55,9 @@ func (h *handler) fetchAll(
 	}
 
 	for _, r := range lst {
-		if tGraph.Blocks(h.Id, r) {
-			continue
-		}
 		select {
 		case <-ctx.Done():
 			close(work)
-			cancel()
 			fetchGroup.Wait()
 			return ctx.Err()
 		case work <- r:
@@ -116,9 +108,10 @@ func (g *handler) fetchFeed(
 	default:
 	}
 	// check our latest
-	addr := fr.StoredAddr()
+	frAddr := fr.StoredAddr()
+	addr := string(frAddr)
 	g.activeLock.Lock()
-	_, ok := g.activeFetch.Load(addr)
+	_, ok := g.activeFetch[addr]
 	if ok {
 		//level.Debug(g.logger).Log("fetchFeed", "crawl active", "addr", fr.ShortRef())
 		g.activeLock.Unlock()
@@ -127,17 +120,18 @@ func (g *handler) fetchFeed(
 	if g.sysGauge != nil {
 		g.sysGauge.With("part", "fetches").Add(1)
 	}
-	g.activeFetch.Store(addr, true)
+
+	g.activeFetch[addr] = struct{}{}
 	g.activeLock.Unlock()
 	defer func() {
 		g.activeLock.Lock()
-		g.activeFetch.Delete(addr)
+		delete(g.activeFetch, addr)
 		g.activeLock.Unlock()
 		if g.sysGauge != nil {
 			g.sysGauge.With("part", "fetches").Add(-1)
 		}
 	}()
-	userLog, err := g.UserFeeds.Get(addr)
+	userLog, err := g.UserFeeds.Get(frAddr)
 	if err != nil {
 		return errors.Wrapf(err, "failed to open sublog for user")
 	}
